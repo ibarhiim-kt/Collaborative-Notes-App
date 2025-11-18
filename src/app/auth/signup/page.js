@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/app/supabase/supabaseClient";
+import { supabaseClient } from "@/app/supabase/supabaseClient";
 import { useRouter } from "next/navigation";
 
 export default function SignUp() {
@@ -19,7 +19,7 @@ export default function SignUp() {
     if (password !== confirmPassword) return setError("Passwords do not match");
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { error } = await supabaseClient.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },

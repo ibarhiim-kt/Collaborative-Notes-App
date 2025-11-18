@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/app/supabase/supabaseClient";
+import { supabaseClient } from "@/app/supabase/supabaseClient";
 import { useRouter } from "next/navigation";
 
 export default function SignIn() {
@@ -16,15 +16,15 @@ export default function SignIn() {
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
     setLoading(false);
 
     if (error) setError(error.message);
-    else router.push("/dashboard"); // Change to your protected page
+    else router.push("/"); // Change to your protected page
   };
 
   const handleGoogleSignIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "google" });
     if (error) console.log(error.message);
   };
 
