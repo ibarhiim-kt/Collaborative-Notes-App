@@ -6,6 +6,7 @@ import CreateNoteModal from "./components/CreateNoteModal";
 import ShareNoteModal from "./components/ShareNoteModal";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { supabaseClient } from "@/app/supabase/supabaseClient";
+import realtimeUpdates from "./supabase/realtimeUpdates";
 
 export default function Home() {
   const [notes, setNotes] = useState([]);
@@ -18,6 +19,13 @@ export default function Home() {
   const [editingNote, setEditingNote] = useState(null);
   const [editingSharedNote, setEditingSharedNote] = useState(null);
   const [sharingNote, setSharingNote] = useState(null);
+  
+  realtimeUpdates({
+  setNotes,
+  setSharedNotes,
+  setSharedByMeNotes,
+  setActivityLogs
+});
 
   // ------------------- FETCH NOTES & INITIAL DATA -------------------
   useEffect(() => {
@@ -81,121 +89,7 @@ export default function Home() {
 
     fetchData();
 
-    // ------------------- REALTIME SUBSCRIPTIONS -------------------
-    const shareChannel = supabaseClient
-  .channel("note_shares_changes")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "note_shares" },
-    async (payload) => {
-      const share = payload.new;
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (!user) return;
 
-      const { data: noteData } = await supabaseClient
-        .from("notes")
-        .select("*")
-        .eq("id", share.note_id)
-        .single();
-
-      // OWNER shares a note
-      if (noteData.owner_id === user.id) {
-        const { data: sharedUser } = await supabaseClient
-          .from("users")
-          .select("email")
-          .eq("id", share.user_id)
-          .single();
-
-        setSharedByMeNotes(prev => [
-          { note_id: noteData, user_id: share.user_id, shared_at: share.shared_at, userEmail: sharedUser?.email || "Unknown" },
-          ...prev
-        ]);
-
-        setActivityLogs(prev => [
-          { isOwner: true, noteTitle: noteData.title, recipientEmail: sharedUser?.email || "Unknown", sharedAt: share.shared_at, type: "share" },
-          ...prev
-        ]);
-      }
-      // RECEIVER gets a shared note
-      else if (share.user_id === user.id) {
-        // Fetch owner email
-        const { data: ownerData } = await supabaseClient
-          .from("users")
-          .select("email")
-          .eq("id", noteData.owner_id)
-          .single();
-
-        setSharedNotes(prev => [
-          { ...noteData, sharedByEmail: ownerData?.email || "Unknown" },
-          ...prev
-        ]);
-
-        setActivityLogs(prev => [
-          { isOwner: false, noteTitle: noteData.title, ownerEmail: ownerData?.email || "Unknown", sharedAt: share.shared_at, type: "share" },
-          ...prev
-        ]);
-      }
-    }
-  )
-  .subscribe();
-// ------------------- REALTIME UPDATE SUBSCRIPTION -------------------
-const notesChannel = supabaseClient
-  .channel("notes_changes")
-  .on(
-    "postgres_changes",
-    { event: "UPDATE", schema: "public", table: "notes" },
-    async (payload) => {
-      const updatedNote = payload.new;
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (!user) return;
-
-      // Update notes, sharedNotes, sharedByMeNotes
-      setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
-      setSharedNotes(prev => prev.map(n => n.id === updatedNote.id ? { ...updatedNote, sharedByEmail: n.sharedByEmail } : n));
-      setSharedByMeNotes(prev => prev.map(s => s.note_id.id === updatedNote.id ? { ...s, note_id: updatedNote } : s));
-
-      // Add update to activity log
-      setActivityLogs(prev => [
-        { isOwner: updatedNote.owner_id === user.id, noteTitle: updatedNote.title, sharedAt: new Date(), type: "update" },
-        ...prev
-      ]);
-    }
-  )
-  .subscribe();
-  // ------------------- REALTIME DELETE SUBSCRIPTION -------------------
-const deleteChannel = supabaseClient
-  .channel("notes_deletes")
-  .on(
-    "postgres_changes",
-    { event: "DELETE", schema: "public", table: "notes" },
-    async (payload) => {
-      const deletedNote = payload.old; // note data before deletion
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (!user) return;
-
-      // Remove from owner's notes
-      setNotes(prev => prev.filter(n => n.id !== deletedNote.id));
-
-      // Remove from shared notes where the note exists
-      setSharedNotes(prev => prev.filter(n => n.id !== deletedNote.id));
-
-      // Remove from SharedByMe notes
-      setSharedByMeNotes(prev => prev.filter(s => s.note_id.id !== deletedNote.id));
-
-      // Optionally update activity logs
-      // setActivityLogs(prev => [
-      //   { isOwner: deletedNote.owner_id === user.id, noteTitle: deletedNote.title, sharedAt: new Date(), type: "delete" },
-      //   ...prev
-      // ]);
-    }
-  )
-  .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(shareChannel);
-      supabaseClient.removeChannel(notesChannel);
-      supabaseClient.removeChannel(deleteChannel);
-    };
   }, []);
 
   // ------------------- HANDLERS -------------------
@@ -248,7 +142,7 @@ const deleteChannel = supabaseClient
     } catch (err) { console.error(err); alert("Failed to share note"); }
   };
 
-  // ------------------- RENDER -------------------
+  
   return (
     <ProtectedRoute>
       <Layout
