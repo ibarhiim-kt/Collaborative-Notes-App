@@ -20,7 +20,7 @@ export default function RealtimeUpdates({
         .channel("note_shares_changes")
         .on(
           "postgres_changes",
-          { event: "INSERT", schema: "public", table: "note_shares" },
+          { event: "INSERT", schema: "public", table: "user_roles" },
           async ({ new: share }) => {
             const { data: noteData } = await supabaseClient
               .from("notes")
@@ -40,7 +40,7 @@ export default function RealtimeUpdates({
               .eq("id", noteData.owner_id)
               .single();
 
-            // Owner → Shared By Me
+            // Owner → Shared By Me (always owner role)
             if (noteData.owner_id === user.id) {
               setSharedByMeNotes(prev => [
                 { note_id: noteData, user_id: share.user_id, shared_at: share.shared_at, userEmail: sharedUser?.email },
@@ -53,10 +53,15 @@ export default function RealtimeUpdates({
               ]);
             }
 
-            // Receiver → Shared Notes
+            // Receiver → Shared Notes (role matters)
             if (share.user_id === user.id) {
               setSharedNotes(prev => [
-                { ...noteData, sharedByEmail: ownerData?.email },
+                { 
+                  ...noteData, 
+                  sharedByEmail: ownerData?.email,
+                  role: share.role,       // ✅ Include role for proper button display
+                  sharedAt: share.shared_at
+                },
                 ...prev,
               ]);
 
@@ -75,13 +80,11 @@ export default function RealtimeUpdates({
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "notes" },
-          async ({ new: updatedNote }) => {
-            // Update notes, sharedNotes, sharedByMeNotes
+          ({ new: updatedNote }) => {
             setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
-            setSharedNotes(prev => prev.map(n => n.id === updatedNote.id ? { ...updatedNote, sharedByEmail: n.sharedByEmail } : n));
+            setSharedNotes(prev => prev.map(n => n.id === updatedNote.id ? { ...updatedNote, sharedByEmail: n.sharedByEmail, role: n.role } : n));
             setSharedByMeNotes(prev => prev.map(s => s.note_id.id === updatedNote.id ? { ...s, note_id: updatedNote } : s));
 
-            // Add update to activity log
             setActivityLogs(prev => [
               { isOwner: updatedNote.owner_id === user.id, noteTitle: updatedNote.title, sharedAt: new Date(), type: "update" },
               ...prev

@@ -23,13 +23,13 @@ export default function SignIn() {
     else router.push("/"); // Change to your protected page
   };
 
-  const handleGoogleSignIn = async () => {
-    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "google" });
-    if (error) console.log(error.message);
-  };
+  // const handleGoogleSignIn = async () => {
+  //   const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "google" });
+  //   if (error) console.log(error.message);
+  // };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-100 to-orange-200 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-200 px-4">
       <div className="w-full max-w-md p-8 bg-white shadow-xl rounded-2xl space-y-5">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">Sign In</h2>
         {error && <p className="text-red-500 text-center">{error}</p>}
@@ -62,7 +62,7 @@ export default function SignIn() {
 
         <div className="flex items-center justify-center space-x-2 text-gray-400 mt-3">OR</div>
 
-        <button
+        {/* <button
           onClick={handleGoogleSignIn}
           className="flex items-center justify-center w-full py-3 mt-2 space-x-2 bg-white-500 border-1 text-black font-semibold rounded-lg hover:bg-red-400 transition"
         >
@@ -72,7 +72,7 @@ export default function SignIn() {
             className="w-5 h-5"
           />
           <span>Sign in with Google</span>
-        </button>
+        </button> */}
 
         <p className="text-center text-gray-500 mt-4">
           Don't have an account?{" "}
